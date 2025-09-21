@@ -1,0 +1,6 @@
+flask
+flask-cors
+sqlalchemy
+passlib[bcrypt]
+pyjwt
+python-dotenv

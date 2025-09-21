@@ -1,0 +1,616 @@
+openapi: 3.0.3
+info:
+  title: Travel Trip Management API
+  description: |
+    A comprehensive API for managing travel trips, including user authentication, trip creation, and trip data management.
+    
+    ## Authentication
+    This API uses JWT (JSON Web Tokens) for authentication. Include the token in the Authorization header:
+    ```
+    Authorization: Bearer <your_jwt_token>
+    ```
+    
+    ## Getting Started
+    1. Register a new user account or login with existing credentials
+    2. Use the returned JWT token for all protected endpoints
+    3. Create trips and manage trip data (notes, places, itinerary, budget)
+    
+  version: 1.0.0
+  contact:
+    name: API Support
+    email: support@travelapi.com
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+
+servers:
+  - url: http://localhost:5000
+    description: Local development server
+  - url: https://api.yourdomain.com
+    description: Production server
+
+tags:
+  - name: Authentication
+    description: User registration, login, and profile management
+  - name: Trip Management
+    description: Core trip CRUD operations
+  - name: Trip Data
+    description: Managing trip-specific data (notes, places, itinerary, budget)
+  - name: Utility
+    description: Health checks and utility endpoints
+
+paths:
+  /api/register:
+    post:
+      tags:
+        - Authentication
+      summary: Register a new user
+      description: Create a new user account and receive a JWT token for authentication
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - email
+                - password
+              properties:
+                email:
+                  type: string
+                  format: email
+                  example: "john.doe@example.com"
+                  description: User's email address (must be unique)
+                password:
+                  type: string
+                  minLength: 6
+                  example: "mypassword123"
+                  description: User's password
+                fullname:
+                  type: string
+                  example: "John Doe"
+                  description: User's full name (optional)
+      responses:
+        '200':
+          description: User successfully registered
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  token:
+                    type: string
+                    example: "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9..."
+                    description: JWT authentication token
+                  user:
+                    type: object
+                    properties:
+                      id:
+                        type: integer
+                        example: 1
+                      email:
+                        type: string
+                        example: "john.doe@example.com"
+        '400':
+          description: Bad request - missing required fields
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                error: "Email and password required"
+        '409':
+          description: Conflict - email already registered
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                error: "Email already registered"
+
+  /api/login:
+    post:
+      tags:
+        - Authentication
+      summary: Login user
+      description: Authenticate user with email and password
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - email
+                - password
+              properties:
+                email:
+                  type: string
+                  format: email
+                  example: "john.doe@example.com"
+                password:
+                  type: string
+                  example: "mypassword123"
+      responses:
+        '200':
+          description: Successfully authenticated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  token:
+                    type: string
+                    example: "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9..."
+                  user:
+                    type: object
+                    properties:
+                      id:
+                        type: integer
+                        example: 1
+                      email:
+                        type: string
+                        example: "john.doe@example.com"
+        '401':
+          description: Invalid credentials
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                error: "Invalid credentials"
+
+  /api/me:
+    get:
+      tags:
+        - Authentication
+      summary: Get current user information
+      description: Retrieve information about the currently authenticated user
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: User information retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: string
+                    example: "1"
+                  email:
+                    type: string
+                    example: "john.doe@example.com"
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+
+  /api/trips:
+    post:
+      tags:
+        - Trip Management
+      summary: Create a new trip
+      description: Create a new trip for the authenticated user
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - name
+              properties:
+                name:
+                  type: string
+                  example: "Summer Vacation to Europe"
+                  description: Trip name (required)
+                start_date:
+                  type: string
+                  format: date
+                  example: "2024-07-01"
+                  description: Trip start date (YYYY-MM-DD format)
+                end_date:
+                  type: string
+                  format: date
+                  example: "2024-07-15"
+                  description: Trip end date (YYYY-MM-DD format)
+      responses:
+        '200':
+          description: Trip created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Trip'
+        '400':
+          description: Bad request - invalid input
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+
+    get:
+      tags:
+        - Trip Management
+      summary: Get all trips
+      description: Retrieve all trips for the authenticated user
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: List of trips retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Trip'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+
+  /api/trips/{tripId}:
+    get:
+      tags:
+        - Trip Management
+      summary: Get trip details
+      description: Retrieve detailed information about a specific trip, including all related data
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: tripId
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: Unique identifier of the trip
+          example: 1
+      responses:
+        '200':
+          description: Trip details retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TripDetails'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          description: Trip not found or not authorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                error: "Trip not found or not authorized"
+
+  /api/trips/{tripId}/notes:
+    post:
+      tags:
+        - Trip Data
+      summary: Add note to trip
+      description: Add a note to a specific trip
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: tripId
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: Unique identifier of the trip
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                content:
+                  type: string
+                  example: "Remember to pack warm clothes for evening walks"
+                  description: Note content
+      responses:
+        '201':
+          description: Note added successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Note'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+
+  /api/trips/{tripId}/places:
+    post:
+      tags:
+        - Trip Data
+      summary: Add place to trip
+      description: Add a place to visit to a specific trip
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: tripId
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: Unique identifier of the trip
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                  example: "Louvre Museum"
+                  description: Place name
+                date:
+                  type: string
+                  format: date
+                  example: "2024-07-04"
+                  description: Visit date
+                description:
+                  type: string
+                  example: "Visit the Mona Lisa and Egyptian collection"
+                  description: Place description
+      responses:
+        '201':
+          description: Place added successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Place'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+
+  /api/trips/{tripId}/itinerary:
+    post:
+      tags:
+        - Trip Data
+      summary: Add itinerary item
+      description: Add an itinerary item to a specific trip
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: tripId
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: Unique identifier of the trip
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                  example: "Seine River Cruise"
+                  description: Activity name
+                description:
+                  type: string
+                  example: "Evening cruise with dinner"
+                  description: Activity description
+                date:
+                  type: string
+                  format: date
+                  example: "2024-07-05"
+                  description: Activity date
+      responses:
+        '201':
+          description: Itinerary item added successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ItineraryItem'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+
+  /api/trips/{tripId}/budget:
+    post:
+      tags:
+        - Trip Data
+      summary: Add budget item
+      description: Add a budget item to a specific trip
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: tripId
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: Unique identifier of the trip
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                amount:
+                  type: number
+                  format: float
+                  example: 75.50
+                  description: Budget amount
+                description:
+                  type: string
+                  example: "Daily food budget"
+                  description: Budget description
+      responses:
+        '201':
+          description: Budget item added successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BudgetItem'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+
+  /api/health:
+    get:
+      tags:
+        - Utility
+      summary: Health check
+      description: Check if the API server is running and healthy
+      responses:
+        '200':
+          description: Server is healthy
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "ok"
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: JWT token obtained from login/register endpoints
+
+  schemas:
+    Error:
+      type: object
+      properties:
+        error:
+          type: string
+          description: Error message
+      example:
+        error: "Invalid input"
+
+    Trip:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+          description: Unique trip identifier
+        name:
+          type: string
+          example: "Summer Vacation to Europe"
+          description: Trip name
+        start_date:
+          type: string
+          format: date
+          example: "2024-07-01"
+          description: Trip start date
+        end_date:
+          type: string
+          format: date
+          example: "2024-07-15"
+          description: Trip end date
+
+    TripDetails:
+      allOf:
+        - $ref: '#/components/schemas/Trip'
+        - type: object
+          properties:
+            notes:
+              type: array
+              items:
+                $ref: '#/components/schemas/Note'
+              description: Trip notes
+            places:
+              type: array
+              items:
+                $ref: '#/components/schemas/Place'
+              description: Places to visit
+            itinerary:
+              type: array
+              items:
+                $ref: '#/components/schemas/ItineraryItem'
+              description: Itinerary items
+            budget:
+              type: array
+              items:
+                $ref: '#/components/schemas/BudgetItem'
+              description: Budget items
+
+    Note:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        content:
+          type: string
+          example: "Remember to pack warm clothes"
+
+    Place:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        name:
+          type: string
+          example: "Louvre Museum"
+        date:
+          type: string
+          format: date
+          example: "2024-07-04"
+        description:
+          type: string
+          example: "Visit the Mona Lisa"
+
+    ItineraryItem:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        name:
+          type: string
+          example: "Seine River Cruise"
+        description:
+          type: string
+          example: "Evening cruise with dinner"
+        date:
+          type: string
+          format: date
+          example: "2024-07-05"
+
+    BudgetItem:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        amount:
+          type: number
+          format: float
+          example: 75.50
+        description:
+          type: string
+          example: "Daily food budget"
+
+  responses:
+    UnauthorizedError:
+      description: Authentication information is missing or invalid
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          examples:
+            missing_token:
+              summary: Missing token
+              value:
+                error: "Missing token"
+            invalid_token:
+              summary: Invalid token
+              value:
+                error: "Invalid token"
+            expired_token:
+              summary: Expired token
+              value:
+                error: "Token expired"
