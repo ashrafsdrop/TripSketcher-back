@@ -121,11 +121,6 @@ def login_required(f):
         return f(*args, **kwargs)
     return decorated_function
 
-# --- dashboard routes ---
-@app.route('/')
-def dashboard():
-    return render_template('dashboard.html')
-
 # --- authentication routes ---
 @app.route("/api/register", methods=["POST"])
 def register():
@@ -713,6 +708,20 @@ def add_budget_item(trip_id):
 def health():
     return {"status": "ok"}
 
+@app.route("/")
+def index():
+    """Simple API status page"""
+    return jsonify({
+        "message": "Travel Trip Management API",
+        "status": "running",
+        "version": "1.0.0",
+        "endpoints": {
+            "health": "/api/health",
+            "documentation": "/api-docs",
+            "swagger": "/docs"
+        }
+    })
+
 # --- Swagger Documentation Routes ---
 @app.route("/docs")
 def swagger_ui():
@@ -724,8 +733,8 @@ def swagger_spec():
     """Serve Swagger YAML specification"""
     return send_from_directory('.', 'swagger.yaml')
 
-@app.route("/")
-def index():
+@app.route("/api-docs")
+def api_docs():
     """API documentation home page"""
     return render_template_string("""
     <!DOCTYPE html>
